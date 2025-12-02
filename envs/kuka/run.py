@@ -57,8 +57,8 @@ def load_world() -> World:
         radish = pb_utils.load_model(pb_utils.SMALL_BLOCK_URDF, fixed_base=False)
         egg = pb_utils.load_model(pb_utils.BLOCK_URDF, fixed_base=False)
         bacon = pb_utils.load_model(pb_utils.BLOCK_URDF, fixed_base=False)
-        pb_utils.add_body_name(stove, "mystove", text_size=1, color=(1,1,0))
-        pb_utils.add_body_name(sink, "mysink", text_size=1, color=(1,1,0))
+        pb_utils.add_body_name(stove, "mystove", text_size=1, color=(1, 1, 0))
+        pb_utils.add_body_name(sink, "mysink", text_size=1, color=(1, 1, 0))
         pb_utils.add_body_name(celery, "celery", text_size=1)
         pb_utils.add_body_name(radish, "radish", text_size=1)
         pb_utils.add_body_name(egg, "egg", text_size=1)
@@ -99,7 +99,7 @@ def load_world() -> World:
     for m in movable_bodies:
         name = body_names[m]
         new_state.add(f"(On {name} mytable)")
-    
+
     for t in range(29):
         new_state.add(f"(Next t{t + 1} t{t + 2})")
     new_state.add("(AtTimestep t1)")
@@ -119,7 +119,7 @@ def load_world() -> World:
 
 
 def init_geometric_state_kuka(
-    num_blocks: int,
+        num_blocks: int,
 ) -> Tuple[World, str, Set[str], Set[str], List[Any]]:
     pbt.utils.connect(use_gui=True)
     world = load_world()
@@ -166,6 +166,7 @@ def init_geometric_state_kuka(
     problem = create_problem(world, num_blocks)
     return world, problem, state, stream_state, objects
 
+
 def update_goal(problem_pddl: str, num_blocks: int) -> None:
     # Change the goal to match the number of blocks
     with open(problem_pddl, "r") as f:
@@ -181,7 +182,7 @@ def create_problem(world: World, num_blocks: int) -> str:
     from symbolic import _P, _and
 
     problem = symbolic.Problem(f"blocks-{num_blocks}", domain="pick-and-place")
-    
+
     for prop in world.new_state:
         problem.add_initial_prop(prop)
     res = {}
@@ -201,185 +202,88 @@ def create_problem(world: World, num_blocks: int) -> str:
     return repr(problem)
 
 
-def main(
-    domain_pddl: str,
-    problem_pddl: str,
-    streams_pddl: str,
-    streams_py: str,
-    algorithm: str,
-    max_level: int,
-    pybullet: bool,
-    search_sample_ratio: float,
-    timeout: int,
-    experiment: int,
-    write_experiment: str,
-    random_seed: int,
-):
-    for num_blocks in range(1, 9):
-        for e in range(experiment):
-            if random_seed is not None:
-                np.random.seed(int(random_seed))
-                random.seed(int(random_seed))
-                print("random_seed args:", random_seed)
-            else:
-                print("random_seed:", e)
-                np.random.seed(e)
-                random.seed(e)
+def main():
+    """Simplified main function - runs with just 1 block"""
 
-            (
-                world,
-                problem_pddl,
-                state,
-                stream_state,
-                objects,
-            ) = init_geometric_state_kuka(
-                num_blocks
-            )  # TODO: This going to fail for other benchmarks
-            # update_goal(problem_pddl, num_blocks)
+    # Set random seed for reproducibility
+    random_seed = 42
+    np.random.seed(random_seed)
+    random.seed(random_seed)
 
-            saver = pbt.utils.WorldSaver()
-            pbt.utils.set_renderer(enable=False)
+    # Hardcoded paths (adjust as needed)
+    domain_pddl = "envs/kuka/domain.pddl"
+    problem_pddl = "envs/kuka/problem.pddl"
+    streams_pddl = "envs/kuka/streams.pddl"
+    streams_py = "envs/kuka/new_streams.py"
 
-            plan = coast.plan(
-                domain_pddl=domain_pddl,
-                problem_pddl=problem_pddl,
-                streams_pddl=streams_pddl,
-                streams_py=streams_py,
-                algorithm=algorithm,
-                max_level=max_level,
-                search_sample_ratio=search_sample_ratio,
-                timeout=timeout,
-                experiment=experiment,
-                stream_state=stream_state,
-                objects=objects,
-                random_seed=random_seed,
-                world=world,
-                constraint_cls=Constraint,
-                sort_streams=False,
-                use_cache=False
-            )
-            if experiment > 1:
-                with open(write_experiment, "a", newline="") as f_object:
-                    res = plan.log.get_timing()
-                    writer_csv = csv.DictWriter(
-                        f_object, fieldnames=list(res.keys()) + ["total",
-                            "num_blocks", "solved", "n_success_plans",
-                            "n_fail_plans"]
-                    )
-                    res["num_blocks"] = num_blocks
-                    res["solved"] = plan.action_plan is not None
-                    res["n_success_plans"] = plan.log.num_success_task_plans
-                    res["n_fail_plans"] = plan.log.num_fail_task_plans
-                    writer_csv.writerow(res)
-                    f_object.close()
-            if plan.action_plan is None or plan.objects is None:
-                pbt.utils.disconnect()
-                return
+    # Configuration
+    num_blocks = 1  # Just use 1 block
+    algorithm = "improved"
+    max_level = 6
+    search_sample_ratio = 10
+    timeout = 1200
+    pybullet_enabled = True
 
-            pbt.utils.set_renderer(enable=True)
-            saver.restore()
-            plan.log.print()
-            if args.pybullet and experiment == 1:
-                pbt.utils.wait_for_user("Execute?")
-                time.sleep(1)
-                a = 1
-                for action in plan.action_plan:
-                    # pbt.utils.wait_for_user("next")
-                    text = pb_utils.add_text(action, (0.6, -0.2, a),
-                            text_size=1.7)
-                    action.execute(plan.objects)
-                    # a -= 0.05
-                    if str(action)[0].lower() == 'c':
-                        time.sleep(0.3)
-                    pb_utils.remove_debug(text)
-                # pbt.utils.wait_for_user("Finish?")
-            elif not args.pybullet and args.experiment == 1:
-                for action_state in plan.action_skeleton:
-                    # TODO: fix
-                    # action_args: List[str] = symbolic.parse_args(action_state)
-                    # action = symbolic.parse_head(action_state)
-                    # coast.policy.execute_action(
-                    #     action, action_args, plan.geometric_state, ab, redis
-                    # )
-                    time.sleep(1)
-            time.sleep(1)
-            pbt.utils.disconnect()
+    # Initialize world and planning state
+    world, problem_pddl_str, state, stream_state, objects = init_geometric_state_kuka(num_blocks)
+
+    saver = pbt.utils.WorldSaver()
+    pbt.utils.set_renderer(enable=False)
+
+    print("Planning...")
+
+    # Run planner
+    plan = coast.plan(
+        domain_pddl=domain_pddl,
+        problem_pddl=problem_pddl_str,
+        streams_pddl=streams_pddl,
+        streams_py=streams_py,
+        algorithm=algorithm,
+        max_level=max_level,
+        search_sample_ratio=search_sample_ratio,
+        timeout=timeout,
+        experiment=1,
+        stream_state=stream_state,
+        objects=objects,
+        random_seed=random_seed,
+        world=world,
+        constraint_cls=Constraint,
+        sort_streams=False,
+        use_cache=False
+    )
+
+    print("Planning complete!")
+
+    # Execute plan if found
+    if plan.action_plan is None or plan.objects is None:
+        print("No plan found")
+        pbt.utils.disconnect()
+        return
+
+    pbt.utils.set_renderer(enable=True)
+    saver.restore()
+    plan.log.print()
+
+    if pybullet_enabled:
+        pbt.utils.wait_for_user("Execute?")
+        time.sleep(1)
+
+        for action in plan.action_plan:
+            text = pb_utils.add_text(str(action), (0.6, -0.2, 1), text_size=1.7)
+            action.execute(plan.objects)
+
+            if str(action)[0].lower() == 'c':
+                time.sleep(0.3)
+
+            pb_utils.remove_debug(text)
+
+    time.sleep(1)
+    pbt.utils.disconnect()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument(
-        "--domain-pddl",
-        "--domain",
-        nargs="?",
-        default="envs/kuka/domain.pddl",
-        help="Pddl domain file.",
-    )
-    parser.add_argument(
-        "--problem-pddl",
-        "--problem",
-        nargs="?",
-        default="envs/kuka/problem.pddl",
-        help="Pddl problem file.",
-    )
-    parser.add_argument(
-        "--streams-pddl",
-        "--streams",
-        nargs="?",
-        default="envs/kuka/streams.pddl",
-        help="Pddl streams file.",
-    )
-    parser.add_argument(
-        "--streams-py",
-        nargs="?",
-        default="envs/kuka/new_streams.py",
-        help="Pddl streams file.",
-    )
-    parser.add_argument(
-        "--algorithm",
-        nargs="?",
-        default="improved",
-        help="Max planning level.",
-    )
-    parser.add_argument(
-        "--max-level",
-        nargs="?",
-        type=int,
-        default=6,
-        help="Max planning level.",
-    )
-    parser.add_argument(
-        "--pybullet",
-        type=bool,
-        default=True,
-        help="Running a domain that runs pybullet",
-    )
-    parser.add_argument(
-        "--search-sample-ratio",
-        type=float,
-        default=10,  # 0.02 1.0 = don't try to resample.
-        help="The ratio of search versus sample",
-    )
-    parser.add_argument(
-        "--timeout", type=int, default=1200, help="Timeout for algorithm"
-    )
-    parser.add_argument(
-        "--experiment",
-        type=int,
-        default=1,
-        help="The number of times you want to run the experiment",
-    )
-    parser.add_argument(
-        "--write-experiment",
-        type=str,
-        default="experiments/0815_kuka_our_no_sort_ff.csv",
-        help="The file to write the csv of experiment",
-    )
-    parser.add_argument("--random-seed", type=int, default=None, help="Random seed")
-    args = parser.parse_args()
-    print(args)
     try:
-        main(**vars(args))
+        main()
     except Exception as e:
         pbt.utils.disconnect()
         raise e
