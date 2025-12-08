@@ -81,19 +81,19 @@ def load_world() -> World:
     }
     movable_bodies = [celery, radish, bacon, egg]
     pb_utils.set_pose(
-        celery, pb_utils.Pose(pb_utils.Point(y=0.5, z=pb_utils.stable_z(celery, table)))
+        celery, pb_utils.Pose(pb_utils.Point(x=-0.3, y=0.075, z=pb_utils.stable_z(celery, table)))    
     )
     pb_utils.set_pose(
         radish,
-        pb_utils.Pose(pb_utils.Point(y=-0.5, z=pb_utils.stable_z(radish, table))),
+        pb_utils.Pose(pb_utils.Point(x=0.35, y=-0.05, z=pb_utils.stable_z(radish, table))),
     )
     pb_utils.set_pose(
         bacon,
-        pb_utils.Pose(pb_utils.Point(x=0.3, y=-0.5, z=pb_utils.stable_z(bacon, table))),
+        pb_utils.Pose(pb_utils.Point(x=0.22, y=-0.2, z=pb_utils.stable_z(bacon, table))),
     )
     pb_utils.set_pose(
         egg,
-        pb_utils.Pose(pb_utils.Point(x=-0.3, y=0.5, z=pb_utils.stable_z(egg, table))),
+        pb_utils.Pose(pb_utils.Point(x=-0.2, y=-0.075, z=pb_utils.stable_z(egg, table))),
     )
     new_state = set()
     for m in movable_bodies:
@@ -104,7 +104,7 @@ def load_world() -> World:
         new_state.add(f"(Next t{t + 1} t{t + 2})")
     new_state.add("(AtTimestep t1)")
     fixed_bodies = [sink, stove, table]
-    q_home = np.array([0.0, np.pi / 6, 0.0, -np.pi / 3, 0.0, np.pi / 2, 0.0])
+    q_home = np.array([0.0, np.pi / 6, 0.0, -np.pi / 3, 0.0, np.pi / 2])
     # pb_utils.wait_for_user()
 
     return World(
