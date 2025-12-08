@@ -48,10 +48,10 @@ def load_world() -> World:
         )
 
         sink = pb_utils.load_model(
-            pb_utils.SINK_URDF, pose=pb_utils.Pose(pb_utils.Point(x=-0.5))
+            pb_utils.SINK_URDF, pose=pb_utils.Pose(pb_utils.Point(x=-0.25))
         )
         stove = pb_utils.load_model(
-            pb_utils.STOVE_URDF, pose=pb_utils.Pose(pb_utils.Point(x=+0.5))
+            pb_utils.STOVE_URDF, pose=pb_utils.Pose(pb_utils.Point(x=+0.25))
         )
         celery = pb_utils.load_model(pb_utils.BLOCK_URDF, fixed_base=False)
         radish = pb_utils.load_model(pb_utils.SMALL_BLOCK_URDF, fixed_base=False)
