@@ -264,6 +264,45 @@ def main():
     saver.restore()
     plan.log.print()
 
+    ############### my code <start> ##################
+
+    print(f"the objects are {plan.objects} and {type(plan.objects)}\n")
+    the_objects = plan.objects
+
+    poses_mine = []
+    configs_mine = []
+    trajectories_mine = []
+    for name, obj in the_objects.items():
+
+        # pose objects
+        if obj.type == "pose":
+            poses_mine.append(obj.value)  # BodyPose
+
+        # configuration objects
+        elif obj.type == "conf":
+            configs_mine.append(obj.value)  # BodyConf
+
+        # trajectory objects
+        elif obj.type == "traj":
+            trajectories_mine.append(obj.value)  # Command
+
+    smart_trajectory_list = []
+
+    for action_call in plan.action_plan:
+        for key, traj_name in action_call.args_map.items():
+            if key in ['?traj1', '?traj2']:
+                traj_obj = str(plan.objects[traj_name])
+                print(traj_obj)
+                print(type(traj_obj))
+                for name, object_items in the_objects.items():
+                    if object_items.name == traj_obj:
+                        command_obj = object_items.value.body_paths[0].path
+                        print(command_obj)
+                        smart_trajectory_list.append(command_obj)
+
+    # ############### my code <end> ##################
+
+    
     if pybullet_enabled:
         pbt.utils.wait_for_user("Execute?")
         time.sleep(1)
