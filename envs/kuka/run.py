@@ -6,6 +6,7 @@ import dataclasses
 import pathlib
 import random
 import time
+import json
 from typing import Dict, List, Optional, Set, Tuple, Any
 
 import numpy as np
@@ -299,6 +300,11 @@ def main():
                         command_obj = object_items.value.body_paths[0].path
                         print(command_obj)
                         smart_trajectory_list.append(command_obj)
+    
+    with open("/root/trajectories.json", "w") as f:
+        json.dump(smart_trajectory_list, f)
+    print("saved trajectories")
+
 
     # ############### my code <end> ##################
 
