@@ -1,5 +1,6 @@
 from typing import Dict, Optional, Any, List, Tuple
 
+import os
 import numpy as np
 from ctrlutils import eigen
 import spatialdyn as dyn
@@ -9,6 +10,8 @@ from coast import Object
 from coast.action import Action
 from coast.formula import _and, _forall, _not, _P, _when
 from pybullet_tools import kuka_primitives, utils as pb_utils
+
+from trac_ik import TracIK
 
 
 GEOMETRIC_PREDICATES = [
@@ -21,22 +24,47 @@ GEOMETRIC_PREDICATES = [
 def compute_opspace_ik(
     ab: dyn.ArticulatedBody,
     pose: Tuple[Tuple[float, float, float], Tuple[float, float, float, float]],
-    ee_offset: np.ndarray = np.array([0.0, 0.0, 0.046]),  # Default for Kuka IIWA.
+    ee_offset: np.ndarray = np.array([0.0, 0.0, 0.012]),  # Default for Kuka IIWA.
 ) -> List[float]:
-    pos = np.array(pose[0])
-    quat = eigen.Quaterniond(pose[1])
+    
+    pos = np.array(pose[0]) - ee_offset       # Apply offset adjustment
+    quat = pose[1]                            # (qx, qy, qz, qw)
 
-    # Set nullspace.
-    if dyn.opspace.is_singular(ab, dyn.jacobian(ab)):
-        q = np.array([np.pi / 2, np.pi / 6, 0, -np.pi / 3, 0, np.pi / 2, 0])
-    else:
-        q = np.array(ab.q)
-    q[0] = np.arctan2(pos[1], pos[0])
-    ab.q = q
+    # Convert quaternion → rotation matrix for TRAC-IK
+    qx, qy, qz, qw = quat
+    rot = np.array([
+        [1 - 2*(qy*qy + qz*qz),     2*(qx*qy - qz*qw),     2*(qx*qz + qy*qw)],
+        [2*(qx*qy + qz*qw),         1 - 2*(qx*qx + qz*qz), 2*(qy*qz - qx*qw)],
+        [2*(qx*qz - qy*qw),         2*(qy*qz + qx*qw),     1 - 2*(qx*qx + qy*qy)]
+    ])
 
-    q = dyn.inverse_kinematics(ab, pos, quat, offset=ee_offset)
+    seed = np.array(ab.q).astype(float)
 
-    return q.tolist()
+    # OPTIONAL: keep your original nullspace heuristic
+    if hasattr(dyn.opspace, "is_singular"):
+        if dyn.opspace.is_singular(ab, dyn.jacobian(ab)):
+            seed = np.array([np.pi/2, np.pi/6, 0, -np.pi/3, 0, np.pi/2])
+
+    # Initialize TracIK (CACHE THIS OUTSIDE THE FUNCTION IN REAL CODE!!)
+    ik_solver = TracIK(
+        base_link_name="base_link",
+        tip_link_name="iiwa_link_7",
+        urdf_path = os.path.join(os.path.dirname(__file__), "urdf/ur3e.urdf")
+    )
+
+    # Run IK
+    q_solution = ik_solver.ik(pos,rot,seed)
+
+    if q_solution is None:
+        # Try ignoring orientation internal error but keeping joint proximity
+        q_solution = ik_solver.ik(pos, np.eye(3), seed)
+
+        print("using nearest feasible configuration")
+
+    # Update articulated body state
+    ab.q = np.array(q_solution)
+
+    return q_solution.tolist()
 
 
 class Clean(Action):
