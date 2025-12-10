@@ -20,6 +20,16 @@ GEOMETRIC_PREDICATES = [
     _P("AtPose", "?b", "?p"),
 ]
 
+def randomize_seed(ab, noise_scale=0.3):
+    """
+    Generates a noisy IK seed around current joint configuration.
+    This helps TRAC-IK explore nullspace solutions.
+    """
+    q = np.array(ab.q).astype(float)
+    # Add random noise to each joint (scaled in radians)
+    noise = noise_scale * (np.random.rand(len(q)) - 0.5) * 2.0
+    return q + noise
+
 
 def compute_opspace_ik(
     ab: dyn.ArticulatedBody,
@@ -38,7 +48,7 @@ def compute_opspace_ik(
         [2*(qx*qz - qy*qw),         2*(qy*qz + qx*qw),     1 - 2*(qx*qx + qy*qy)]
     ])
 
-    seed = np.array(ab.q).astype(float)
+    seed = randomize_seed(ab)
 
     # OPTIONAL: keep your original nullspace heuristic
     if hasattr(dyn.opspace, "is_singular"):
